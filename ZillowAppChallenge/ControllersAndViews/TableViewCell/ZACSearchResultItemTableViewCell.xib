@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="14113" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina4_7" orientation="portrait">
+        <adaptation id="fullscreen"/>
+    </device>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="14088"/>
+        <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <tableViewCell contentMode="scaleToFill" selectionStyle="default" indentationWidth="10" reuseIdentifier="SearchResultItemCell" rowHeight="187" id="KGk-i7-Jjw" customClass="ZACSearchResultItemTableViewCell" customModule="ZillowAppChallenge" customModuleProvider="target">
+            <rect key="frame" x="0.0" y="0.0" width="340" height="202"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+            <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="KGk-i7-Jjw" id="H2p-sc-9uM">
+                <rect key="frame" x="0.0" y="0.0" width="340" height="201.5"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <imageView userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="iconPhotoPlaceholder" translatesAutoresizingMaskIntoConstraints="NO" id="5sz-xm-jbW">
+                        <rect key="frame" x="0.0" y="0.0" width="340" height="130"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="130" id="mHo-OU-hze"/>
+                        </constraints>
+                    </imageView>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Address" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="xSp-Tz-rsq">
+                        <rect key="frame" x="16" y="133" width="308" height="20"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="20" id="mkr-I6-s4V"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                        <nil key="textColor"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Price" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="kLm-Dy-sfN">
+                        <rect key="frame" x="16" y="156" width="308" height="20"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="20" id="xMS-gE-Sfb"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                        <nil key="textColor"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Bathrooms" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="dxe-NR-QaH">
+                        <rect key="frame" x="16" y="179" width="152.5" height="20"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="20" id="LmB-xL-HZB"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                        <nil key="textColor"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Bedrooms" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="aTz-9N-hk4">
+                        <rect key="frame" x="171.5" y="179" width="152.5" height="20"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="20" id="li1-Cg-bv2"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                        <nil key="textColor"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" style="gray" translatesAutoresizingMaskIntoConstraints="NO" id="ALU-LL-MmE">
+                        <rect key="frame" x="160" y="156" width="20" height="20"/>
+                    </activityIndicatorView>
+                </subviews>
+                <constraints>
+                    <constraint firstItem="aTz-9N-hk4" firstAttribute="top" secondItem="kLm-Dy-sfN" secondAttribute="bottom" constant="3" id="3IE-F3-ffn"/>
+                    <constraint firstAttribute="trailing" secondItem="5sz-xm-jbW" secondAttribute="trailing" id="A1o-e0-b9Z"/>
+                    <constraint firstItem="xSp-Tz-rsq" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leadingMargin" id="Jor-Zy-2S9"/>
+                    <constraint firstItem="kLm-Dy-sfN" firstAttribute="top" secondItem="xSp-Tz-rsq" secondAttribute="bottom" constant="3" id="LZt-Y3-VSu"/>
+                    <constraint firstItem="ALU-LL-MmE" firstAttribute="centerX" secondItem="H2p-sc-9uM" secondAttribute="centerX" id="MsG-nU-gvh"/>
+                    <constraint firstItem="aTz-9N-hk4" firstAttribute="trailing" secondItem="H2p-sc-9uM" secondAttribute="trailingMargin" id="P54-64-gUi"/>
+                    <constraint firstItem="kLm-Dy-sfN" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leadingMargin" id="Qfx-GZ-gDu"/>
+                    <constraint firstItem="xSp-Tz-rsq" firstAttribute="trailing" secondItem="H2p-sc-9uM" secondAttribute="trailingMargin" id="VeS-hb-KPg"/>
+                    <constraint firstItem="aTz-9N-hk4" firstAttribute="leading" secondItem="dxe-NR-QaH" secondAttribute="trailing" constant="3" id="cZS-r4-8mm"/>
+                    <constraint firstItem="xSp-Tz-rsq" firstAttribute="top" secondItem="5sz-xm-jbW" secondAttribute="bottom" constant="3" id="eG6-0e-5SD"/>
+                    <constraint firstItem="5sz-xm-jbW" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leading" id="eV5-so-CbM"/>
+                    <constraint firstItem="dxe-NR-QaH" firstAttribute="top" secondItem="kLm-Dy-sfN" secondAttribute="bottom" constant="3" id="exx-ua-qpE"/>
+                    <constraint firstItem="ALU-LL-MmE" firstAttribute="top" secondItem="5sz-xm-jbW" secondAttribute="bottom" constant="26" id="gqW-kg-liQ"/>
+                    <constraint firstItem="kLm-Dy-sfN" firstAttribute="trailing" secondItem="H2p-sc-9uM" secondAttribute="trailingMargin" id="hkW-GD-dvQ"/>
+                    <constraint firstItem="dxe-NR-QaH" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leadingMargin" id="rGf-8i-xSf"/>
+                    <constraint firstItem="dxe-NR-QaH" firstAttribute="width" secondItem="aTz-9N-hk4" secondAttribute="width" id="wNL-fs-ivE"/>
+                    <constraint firstItem="5sz-xm-jbW" firstAttribute="top" secondItem="H2p-sc-9uM" secondAttribute="top" id="yLq-S0-yqG"/>
+                </constraints>
+            </tableViewCellContentView>
+            <viewLayoutGuide key="safeArea" id="njF-e1-oar"/>
+            <connections>
+                <outlet property="activityIndicator" destination="ALU-LL-MmE" id="PFL-kt-AOT"/>
+                <outlet property="addressLabel" destination="xSp-Tz-rsq" id="ZOX-HZ-DVO"/>
+                <outlet property="bathroomsLabel" destination="dxe-NR-QaH" id="2PP-NC-mGi"/>
+                <outlet property="bedroomsLabel" destination="aTz-9N-hk4" id="LpN-PO-3Mc"/>
+                <outlet property="priceLabel" destination="kLm-Dy-sfN" id="4hY-Ju-Kye"/>
+                <outlet property="propertyImageView" destination="5sz-xm-jbW" id="vg6-Qi-r3W"/>
+            </connections>
+            <point key="canvasLocation" x="54" y="-29"/>
+        </tableViewCell>
+    </objects>
+    <resources>
+        <image name="iconPhotoPlaceholder" width="310" height="150"/>
+    </resources>
+</document>
