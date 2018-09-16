@@ -19,7 +19,7 @@ class ZACRootViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        self.tableView.register(ZACSearchResultItemTableViewCell.self, forCellReuseIdentifier: "SearchResultItemCell")
+        self.tableView.register(UINib(nibName: "ZACSearchResultItemTableViewCell", bundle: nil), forCellReuseIdentifier: "SearchResultItemCell")
         self.tableView.delegate = self
         self.tableView.dataSource = self
         self.tableView.isHidden = false
@@ -28,8 +28,11 @@ class ZACRootViewController: UIViewController {
         
         self.barButtonItem.image = UIImage(named: "iconMapView")
         
-//        ZACNetworkManager.shared().getPropertyList()
         self.layoutUIElements()
+        
+        ZACNetworkManager.registerDelegate(self)
+        
+        ZACNetworkManager.asyncFetchMoreListings()
     }
     
     override func viewWillLayoutSubviews() {
@@ -50,18 +53,12 @@ class ZACRootViewController: UIViewController {
                     self.mapView.isHidden = false
                     self.barButtonItem.image = UIImage(named: "iconListView")
                 }
-                else if (self.tableView.isHidden == true && self.mapView.isHidden == false) {
+                else {
                     self.tableView.isHidden = false
                     self.mapView.isHidden = true
                     self.barButtonItem.image = UIImage(named: "iconMapView")
                 }
-                else {
-                    assert(false, "We should never get to a weird app state")  // TODO: better error handling
-                }
             }
-        }
-        else {
-            
         }
     }
     
@@ -90,15 +87,23 @@ class ZACRootViewController: UIViewController {
 
 }
 
+extension ZACRootViewController: ZACNetworkManagerDelegate {
+    func networkManager(_ networkManager: ZACNetworkManager, fetchedResults results: [ZACSearchResultItem]) {
+        self.tableView.reloadData()
+    }
+}
+
 extension ZACRootViewController: UITableViewDataSource {
     public func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 0;
+        return ZACNetworkManager.fetchedListings().count
     }
     
     public func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell: ZACSearchResultItemTableViewCell = tableView.dequeueReusableCell(withIdentifier: "SearchResultItemCell", for: indexPath) as! ZACSearchResultItemTableViewCell
         
         cell.unpopulate()
+        let searchResultItem: [ZACSearchResultItem] = ZACNetworkManager.fetchedListings()
+        cell.populate(with: searchResultItem[indexPath.row])
         
         return cell
     }
@@ -106,6 +111,10 @@ extension ZACRootViewController: UITableViewDataSource {
 }
 
 extension ZACRootViewController: UITableViewDelegate {
+    
+    public func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 220
+    }
     
 //    public func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath)
 //
@@ -228,45 +237,7 @@ extension ZACRootViewController: UITableViewDelegate {
 //
 //    @available(iOS 2.0, *)
 //    optional public func tableView(_ tableView: UITableView, didEndEditingRowAt indexPath: IndexPath?)
-//
-//
-//    // Moving/reordering
-//
-//    // Allows customization of the target row for a particular row as it is being moved/reordered
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, targetIndexPathForMoveFromRowAt sourceIndexPath: IndexPath, toProposedIndexPath proposedDestinationIndexPath: IndexPath) -> IndexPath
-//
-//
-//    // Indentation
-//
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, indentationLevelForRowAt indexPath: IndexPath) -> Int // return 'depth' of row for hierarchies
-//
-//
-//    // Copy/Paste.  All three methods must be implemented by the delegate.
-//
-//    @available(iOS 5.0, *)
-//    optional public func tableView(_ tableView: UITableView, shouldShowMenuForRowAt indexPath: IndexPath) -> Bool
-//
-//    @available(iOS 5.0, *)
-//    optional public func tableView(_ tableView: UITableView, canPerformAction action: Selector, forRowAt indexPath: IndexPath, withSender sender: Any?) -> Bool
-//
-//    @available(iOS 5.0, *)
-//    optional public func tableView(_ tableView: UITableView, performAction action: Selector, forRowAt indexPath: IndexPath, withSender sender: Any?)
-//
-//
-//
-//
-//    @available(iOS 9.0, *)
-//    optional public func tableView(_ tableView: UITableView, shouldUpdateFocusIn context: UITableViewFocusUpdateContext) -> Bool
-//
-//    @available(iOS 9.0, *)
-//    optional public func tableView(_ tableView: UITableView, didUpdateFocusIn context: UITableViewFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator)
-//
-//    @available(iOS 9.0, *)
-//    optional public func indexPathForPreferredFocusedView(in tableView: UITableView) -> IndexPath?
-//
-//
+
 //    // Spring Loading
 //
 //    // Allows opting-out of spring loading for an particular row.

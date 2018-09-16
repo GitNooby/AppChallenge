@@ -8,56 +8,71 @@
 
 import UIKit
 
+protocol ZACNetworkManagerDelegate: class {
+    func networkManager(_ networkManager: ZACNetworkManager, fetchedResults results: [ZACSearchResultItem])
+}
+
 class ZACNetworkManager: NSObject {
 
+    weak var delegate: ZACNetworkManagerDelegate?  // TODO: should be an array so that we can register multiple delegates
+    var networkAPIEndPointURL: URLComponents?
+    var incompleteTasksDataDictionary: [Int : Data]?  // Key is URLSessionDataTask's taskIdentifier
+    var urlSession: URLSession?
+    var searchResultItemsArray: [ZACSearchResultItem]?
+    var searchResultItemsDictionary: [String: ZACSearchResultItem]?  // Key is property's identifier string
+    
+    // Properties for tracking paging
+    var pageNumber: Int = 0  // starting at page 0
+    var pageItemsCount: Int = 5  // Load 5 properties at a time
+    
     // MARK: - Singleton
     
     private static var sharedNetworkManager: ZACNetworkManager = {
         // TODO: this url should not be hard coded
         let endpointURL: URLComponents! = URLComponents(string: "https://trulia-interview-challenge.herokuapp.com/listings")
-        
         let networkManager: ZACNetworkManager = ZACNetworkManager(networkAPIEndPointURL: endpointURL)
         return networkManager
     }()
     
-    let networkAPIEndPointURL: URLComponents
-    
-    var dataTask: URLSessionDataTask?
-    
-    var urlSession: URLSession?
-    
-    var incompleteTasksData: [Int : Data]
-    
-    // MARK: - Inititalizer
-    
     private init(networkAPIEndPointURL: URLComponents) {
-        self.networkAPIEndPointURL = networkAPIEndPointURL;
-        self.incompleteTasksData = [:]
         super.init()
-        
-        // TODO: maybe this should be created as a background session instead of default
+        self.networkAPIEndPointURL = networkAPIEndPointURL
+        self.incompleteTasksDataDictionary = [:]
+        // TODO: maybe this urlSeesion should be created as a background session instead of default
         self.urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+        self.searchResultItemsArray = []
+        self.searchResultItemsDictionary = [:]
     }
     
-    class func shared() -> ZACNetworkManager {
+    private class func shared() -> ZACNetworkManager {
         return self.sharedNetworkManager
     }
     
-    func getPropertyList() -> Dictionary<String, Any>? {
+    class func registerDelegate(_ delegate: ZACNetworkManagerDelegate) {
+        ZACNetworkManager.shared().delegate = delegate
+    }
+    
+    class func asyncFetchMoreListings() -> Progress {
+        let sharedNetworkManager = ZACNetworkManager.shared()
         
-        var request = URLComponents(string: self.networkAPIEndPointURL.string!)
-        request?.queryItems = [URLQueryItem(name: "start", value: "0"), URLQueryItem(name: "count", value: "1")]
+        var fetchListingRequest = URLComponents(string: (sharedNetworkManager.networkAPIEndPointURL?.string)!)
+        fetchListingRequest?.queryItems = [
+            URLQueryItem(name: "start", value: String(sharedNetworkManager.pageNumber)),
+            URLQueryItem(name: "count", value: String(sharedNetworkManager.pageItemsCount))
+        ]
         
-        let req = URLRequest(url: (request?.url)!)
+        let request = URLRequest(url: (fetchListingRequest?.url)!)
+        let fetchListingDataTask: URLSessionDataTask = (sharedNetworkManager.urlSession?.dataTask(with: request))!
+        fetchListingDataTask.taskDescription = "FetchListingsTask"  // TODO: should not hard code this string
         
-        let dataTask: URLSessionDataTask = (self.urlSession?.dataTask(with: req))!
+        sharedNetworkManager.incompleteTasksDataDictionary![fetchListingDataTask.taskIdentifier] = Data()
+        fetchListingDataTask.resume()
         
-        
-        self.incompleteTasksData[dataTask.taskIdentifier] = Data()
-        
-        dataTask.resume()
-        
-        return nil
+        return fetchListingDataTask.progress
+    }
+    
+    class func fetchedListings() -> [ZACSearchResultItem] {
+        return ZACNetworkManager.shared().searchResultItemsArray!
     }
     
 }
@@ -81,27 +96,32 @@ extension ZACNetworkManager: URLSessionTaskDelegate {
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if error == nil {
-//            print("didCompleteWithError? \(task.taskIdentifier)")
+        if let error = error {
+            print("URLSessionTask failure: \(error.localizedDescription)")
+        }
+        else if task.taskDescription == "FetchListingsTask" {
+            self.pageNumber = self.pageNumber + self.pageItemsCount  // Increment page for future fetch
             
-            let data = self.incompleteTasksData[task.taskIdentifier]!
-            let json = try? JSONSerialization.jsonObject(with: data, options: [])
+            let fetchedData = self.incompleteTasksDataDictionary![task.taskIdentifier]!
+            let fetchedJSON = try? JSONSerialization.jsonObject(with: fetchedData, options: [])
             
-            if let response = json as? [Dictionary<String, Any>] {
-                for item in response {
-//                    print("\(item)")
-                    let asdfData = try? JSONSerialization.data(withJSONObject: item, options: .prettyPrinted)
-                    let decoder = JSONDecoder()
-                    let home = try? decoder.decode(ZACSearchResultItem.self, from: asdfData!)
-                    print("\(home?.zipCode)")
+            if let listings = fetchedJSON as? [Dictionary<String, Any>] {
+                let jsonDecoder = JSONDecoder()
+                for aListing in listings {
+                    let encodedData = try? JSONSerialization.data(withJSONObject: aListing, options: .prettyPrinted)
+                    let decodedListing = try? jsonDecoder.decode(ZACSearchResultItem.self, from: encodedData!)
+                    if let decodedListing = decodedListing {
+                        self.searchResultItemsArray?.append(decodedListing)
+                    }
+                }
+                if self.delegate != nil {
+                    DispatchQueue.main.async {
+                        self.delegate?.networkManager(self, fetchedResults: self.searchResultItemsArray!)
+                    }
                 }
             }
-            
         }
-        else {
-            print("catastrophic: \(error?.localizedDescription ?? "what")")
-        }
-        self.incompleteTasksData[task.taskIdentifier] = nil
+        self.incompleteTasksDataDictionary![task.taskIdentifier] = nil
     }
 }
 
@@ -111,8 +131,9 @@ extension ZACNetworkManager: URLSessionDataDelegate {
 //    }
 
     public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        self.incompleteTasksData[dataTask.taskIdentifier]!.append(data)
-        print("didReceive Data \(dataTask.taskIdentifier)")
+        if dataTask.taskDescription == "FetchListingsTask" {
+            self.incompleteTasksDataDictionary![dataTask.taskIdentifier]?.append(data)
+        }
     }
 
 //    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, willCacheResponse proposedResponse: CachedURLResponse, completionHandler: @escaping (CachedURLResponse?) -> Swift.Void) {

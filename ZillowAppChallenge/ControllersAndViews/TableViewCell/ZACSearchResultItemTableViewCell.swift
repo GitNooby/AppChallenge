@@ -44,6 +44,7 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
         self.bathroomsLabel.text = nil
         
         self.activityIndicator.isHidden = false
+        self.activityIndicator.startAnimating()
     }
     
     func populate(with model: ZACSearchResultItem) {
@@ -52,7 +53,7 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
         self.propertyImageView.layer.borderWidth = 2
         
         self.addressLabel.isHidden = false
-        self.addressLabel.text = "\(model.streetNumber ?? "--") \(model.streetName ?? "--") \(model.city ?? "--") \(model.stateCode ?? "--")"
+        self.addressLabel.text = "\(model.streetNumber ?? "--") \(model.streetName ?? "--"), \(model.city ?? "--"), \(model.stateCode ?? "--")"
         
         self.priceLabel.isHidden = false
         self.priceLabel.text = "$\(model.price ?? -1)"  // TODO: handle nils by printing "$ --" instead
@@ -63,6 +64,8 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
         self.bathroomsLabel.isHidden = false
         self.bathroomsLabel.text = "\(model.bathrooms ?? -1) ba"
         
+        self.activityIndicator.isHidden = true
+        self.activityIndicator.stopAnimating()
     }
     
 }
