@@ -16,6 +16,8 @@ class ZACRootViewController: UIViewController {
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var mapView: MKMapView!
     
+    private let regionRadius: CLLocationDistance = 2000
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -24,7 +26,11 @@ class ZACRootViewController: UIViewController {
         self.tableView.dataSource = self
         self.tableView.isHidden = false
         
+        self.mapView.register(ZACListingAnnotationView.self, forAnnotationViewWithReuseIdentifier: MKMapViewDefaultAnnotationViewReuseIdentifier)
+        self.mapView.mapType = .mutedStandard
         self.mapView.isHidden = true
+        self.mapView.delegate = self
+        
         
         self.barButtonItem.image = UIImage(named: "iconMapView")
         
@@ -34,6 +40,12 @@ class ZACRootViewController: UIViewController {
         
         ZACNetworkManager.asyncFetchMoreListings()
         ZACImageCacher.clearCache()
+    }
+    
+    func moveMapToLocation(location: CLLocation) {
+        let coordinateRegion = MKCoordinateRegionMakeWithDistance(location.coordinate,
+                                                                  regionRadius*2.0, regionRadius*2)
+        self.mapView.setRegion(coordinateRegion, animated: true)
     }
     
     override func viewWillLayoutSubviews() {
@@ -85,11 +97,46 @@ class ZACRootViewController: UIViewController {
         self.mapView.bottomAnchor.constraint(equalTo: self.toolBar.topAnchor).isActive = true
         self.mapView.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor).isActive = true
     }
+    
+    private func addListingsToMapView(_ listings: [ZACSearchResultItem]) {
+        self.mapView.removeAnnotations(self.mapView.annotations)
+        if listings.count == 0 {
+            return
+        }
+        
+        var totalLat: Double = 0;
+        var totalLon: Double = 0;
+        
+        for listing: ZACSearchResultItem in listings {
+            let title = "\(listing.streetNumber ?? "--") \(listing.streetName ?? "--")"
+            let subtitle: String
+            if let price = listing.price {
+                subtitle = "$\(price)"
+            } else {
+                subtitle = "--"
+            }
+            
+            totalLat += listing.latitude!
+            totalLon += listing.longitude!
+            
+            let location = CLLocation(latitude: listing.latitude!, longitude: listing.longitude!)
+            let listingAnnotation = ZACListingAnnotation(title: title, subtitle: subtitle, coordinate: location.coordinate)
+            self.mapView.addAnnotation(listingAnnotation)
+        }
+        
+        let centerLat = totalLat / Double(listings.count)
+        let centerLon = totalLon /  Double(listings.count)
+        let mapCenter = CLLocation(latitude: centerLat, longitude: centerLon)
+        let region = MKCoordinateRegionMakeWithDistance(mapCenter.coordinate, 2000*2, 2000*2)
+        mapView.setRegion(region, animated: false)
+        
+    }
 
 }
 
 extension ZACRootViewController: ZACNetworkManagerDelegate {
     func networkManager(_ networkManager: ZACNetworkManager, fetchedResults results: [ZACSearchResultItem]) {
+        self.addListingsToMapView(networkManager.searchResultItemsArray!)
         self.tableView.reloadData()
     }
 }
@@ -112,139 +159,25 @@ extension ZACRootViewController: UITableViewDataSource {
 }
 
 extension ZACRootViewController: UITableViewDelegate {
-    
     public func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 220
+        return 220  // TODO: probably shouldn't hard code
     }
-    
-//    public func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath)
-//
-//    @available(iOS 6.0, *)
-//    optional public func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int)
-//
-//    @available(iOS 6.0, *)
-//    optional public func tableView(_ tableView: UITableView, willDisplayFooterView view: UIView, forSection section: Int)
-//
-//    @available(iOS 6.0, *)
-//    optional public func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath)
-//
-//    @available(iOS 6.0, *)
-//    optional public func tableView(_ tableView: UITableView, didEndDisplayingHeaderView view: UIView, forSection section: Int)
-//
-//    @available(iOS 6.0, *)
-//    optional public func tableView(_ tableView: UITableView, didEndDisplayingFooterView view: UIView, forSection section: Int)
-//
-//
-//    // Variable height support
-//
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat
-//
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat
-//
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat
-//
-//
-//    // Use the estimatedHeight methods to quickly calcuate guessed values which will allow for fast load times of the table.
-//    // If these methods are implemented, the above -tableView:heightForXXX calls will be deferred until views are ready to be displayed, so more expensive logic can be placed there.
-//    @available(iOS 7.0, *)
-//    optional public func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat
-//
-//    @available(iOS 7.0, *)
-//    optional public func tableView(_ tableView: UITableView, estimatedHeightForHeaderInSection section: Int) -> CGFloat
-//
-//    @available(iOS 7.0, *)
-//    optional public func tableView(_ tableView: UITableView, estimatedHeightForFooterInSection section: Int) -> CGFloat
-//
-//
-//    // Section header & footer information. Views are preferred over title should you decide to provide both
-//
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? // custom view for header. will be adjusted to default or specified header height
-//
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? // custom view for footer. will be adjusted to default or specified footer height
-//
-//
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, accessoryButtonTappedForRowWith indexPath: IndexPath)
-//
-//
-//    // Selection
-//
-//    // -tableView:shouldHighlightRowAtIndexPath: is called when a touch comes down on a row.
-//    // Returning NO to that message halts the selection process and does not cause the currently selected row to lose its selected look while the touch is down.
-//    @available(iOS 6.0, *)
-//    optional public func tableView(_ tableView: UITableView, shouldHighlightRowAt indexPath: IndexPath) -> Bool
-//
-//    @available(iOS 6.0, *)
-//    optional public func tableView(_ tableView: UITableView, didHighlightRowAt indexPath: IndexPath)
-//
-//    @available(iOS 6.0, *)
-//    optional public func tableView(_ tableView: UITableView, didUnhighlightRowAt indexPath: IndexPath)
-//
-//
-//    // Called before the user changes the selection. Return a new indexPath, or nil, to change the proposed selection.
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, willSelectRowAt indexPath: IndexPath) -> IndexPath?
-//
-//    @available(iOS 3.0, *)
-//    optional public func tableView(_ tableView: UITableView, willDeselectRowAt indexPath: IndexPath) -> IndexPath?
-//
-//    // Called after the user changes the selection.
-//    @available(iOS 2.0, *)
 //    optional public func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath)
-//
-//    @available(iOS 3.0, *)
 //    optional public func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath)
-//
-//
-//    // Editing
-//
-//    // Allows customization of the editingStyle for a particular cell located at 'indexPath'. If not implemented, all editable cells will have UITableViewCellEditingStyleDelete set for them when the table has editing property set to YES.
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCellEditingStyle
-//
-//    @available(iOS 3.0, *)
-//    optional public func tableView(_ tableView: UITableView, titleForDeleteConfirmationButtonForRowAt indexPath: IndexPath) -> String?
-//
-//
-//    // Use -tableView:trailingSwipeActionsConfigurationForRowAtIndexPath: instead of this method, which will be deprecated in a future release.
-//    // This method supersedes -tableView:titleForDeleteConfirmationButtonForRowAtIndexPath: if return value is non-nil
-//    @available(iOS 8.0, *)
-//    optional public func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]?
-//
-//
-//    // Swipe actions
-//    // These methods supersede -editActionsForRowAtIndexPath: if implemented
-//    // return nil to get the default swipe actions
-//    @available(iOS 11.0, *)
-//    optional public func tableView(_ tableView: UITableView, leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration?
-//
-//    @available(iOS 11.0, *)
-//    optional public func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration?
-//
-//
-//    // Controls whether the background is indented while editing.  If not implemented, the default is YES.  This is unrelated to the indentation level below.  This method only applies to grouped style table views.
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, shouldIndentWhileEditingRowAt indexPath: IndexPath) -> Bool
-//
-//
-//    // The willBegin/didEnd methods are called whenever the 'editing' property is automatically changed by the table (allowing insert/delete/move). This is done by a swipe activating a single row
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, willBeginEditingRowAt indexPath: IndexPath)
-//
-//    @available(iOS 2.0, *)
-//    optional public func tableView(_ tableView: UITableView, didEndEditingRowAt indexPath: IndexPath?)
-
-//    // Spring Loading
-//
-//    // Allows opting-out of spring loading for an particular row.
-//    // If you want the interaction effect on a different subview of the spring loaded cell, modify the context.targetView property. The default is the cell.
-//    // If this method is not implemented, the default is YES except when the row is part of a drag session.
-//    @available(iOS 11.0, *)
-//    optional public func tableView(_ tableView: UITableView, shouldSpringLoadRowAt indexPath: IndexPath, with context: UISpringLoadedInteractionContext) -> Bool
 }
 
+extension ZACRootViewController: MKMapViewDelegate {
+    
+    func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        
+        if annotation is ZACListingAnnotation {
+            let listingAnnotationView = mapView.dequeueReusableAnnotationView(withIdentifier: MKMapViewDefaultAnnotationViewReuseIdentifier, for: annotation)
+            if listingAnnotationView is ZACListingAnnotationView {
+                return listingAnnotationView
+            }
+        }
+
+        return nil;
+    }
+    
+}

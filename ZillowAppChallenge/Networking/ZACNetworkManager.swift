@@ -111,7 +111,11 @@ extension ZACNetworkManager: URLSessionTaskDelegate {
                     let encodedData = try? JSONSerialization.data(withJSONObject: aListing, options: .prettyPrinted)
                     let decodedListing = try? jsonDecoder.decode(ZACSearchResultItem.self, from: encodedData!)
                     if let decodedListing = decodedListing {
-                        self.searchResultItemsArray?.append(decodedListing)
+                        
+                        if self.searchResultItemsDictionary![decodedListing.id!] == nil {
+                            self.searchResultItemsArray?.append(decodedListing)
+                            self.searchResultItemsDictionary![decodedListing.id!] = decodedListing
+                        }
                     }
                 }
                 if self.delegate != nil {
