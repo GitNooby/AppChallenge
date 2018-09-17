@@ -27,12 +27,11 @@ class ZACRootViewController: UIViewController {
         self.tableView.delegate = self
         self.tableView.dataSource = self
         self.tableView.alpha = 1
-//        self.tableView.isHidden = false
+        self.tableView.tableFooterView = UIView(frame: .zero)
         
         self.mapView.register(ZACListingAnnotationView.self, forAnnotationViewWithReuseIdentifier: MKMapViewDefaultAnnotationViewReuseIdentifier)
         self.mapView.mapType = .mutedStandard
         self.mapView.alpha = 0
-//        self.mapView.isHidden = true
         self.mapView.delegate = self
         
         self.barButtonItem.image = UIImage(named: Constants.ImageAssetNames.iconMapView)?.withRenderingMode(.alwaysOriginal)
