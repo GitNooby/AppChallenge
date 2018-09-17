@@ -23,7 +23,7 @@ class ZACNetworkManager: NSObject {
     
     // Properties for tracking paging
     var pageNumber: Int = 0  // starting at page 0
-    var pageItemsCount: Int = 5  // Load 5 properties at a time
+    var pageItemsCount: Int = 10  // Load 5 properties at a time
     
     // MARK: - Singleton
     

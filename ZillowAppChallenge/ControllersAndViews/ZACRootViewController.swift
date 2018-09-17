@@ -33,6 +33,7 @@ class ZACRootViewController: UIViewController {
         ZACNetworkManager.registerDelegate(self)
         
         ZACNetworkManager.asyncFetchMoreListings()
+        ZACImageCacher.clearCache()
     }
     
     override func viewWillLayoutSubviews() {
