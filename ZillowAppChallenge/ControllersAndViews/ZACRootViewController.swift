@@ -20,6 +20,8 @@ class ZACRootViewController: UIViewController {
     
     private let regionRadius: CLLocationDistance = 2000
     
+    var listingFetchProgress: Progress? = nil
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -39,7 +41,7 @@ class ZACRootViewController: UIViewController {
         
         ZACNetworkManager.registerDelegate(self)
         
-        ZACNetworkManager.asyncFetchMoreListings()
+        self.listingFetchProgress = ZACNetworkManager.asyncFetchMoreListings()
         ZACImageCacher.clearCache()
     }
     
@@ -162,6 +164,7 @@ extension ZACRootViewController: ZACNetworkManagerDelegate {
     func networkManager(_ networkManager: ZACNetworkManager, fetchedResults results: [ZACSearchResultItem]) {
         self.addListingsToMapView(networkManager.searchResultItemsArray!)
         self.tableView.reloadData()
+        self.listingFetchProgress = nil
     }
 }
 
@@ -183,7 +186,7 @@ extension ZACRootViewController: UITableViewDataSource {
 }
 
 extension ZACRootViewController: UITableViewDelegate {
-    public func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 220  // TODO: probably shouldn't hard code
     }
     
@@ -197,7 +200,19 @@ extension ZACRootViewController: UITableViewDelegate {
         let listingAnnotation = self.mapViewAnnotations[selectedListing.id!]
         self.mapView.selectAnnotation(listingAnnotation!, animated: true)
     }
-//    optional public func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath)
+    
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        // When we're about to load the 5th last item, do another fetch for more listings
+        let distanceFromLastItem = (ZACNetworkManager.fetchedListings().count - 1) - indexPath.row
+        if distanceFromLastItem <= 5 {
+            if self.listingFetchProgress == nil || self.listingFetchProgress?.fractionCompleted == 1.0 {
+               self.listingFetchProgress = ZACNetworkManager.asyncFetchMoreListings()
+            }
+            else {
+                print("we're already in the middle of a fetch")
+            }
+        }
+    }
 }
 
 extension ZACRootViewController: MKMapViewDelegate {

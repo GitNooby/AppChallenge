@@ -118,7 +118,7 @@ extension ZACNetworkManager: URLSessionTaskDelegate {
                         }
                     }
                 }
-                if self.delegate != nil {
+                if self.delegate != nil && listings.count > 0 {
                     DispatchQueue.main.async {
                         self.delegate?.networkManager(self, fetchedResults: self.searchResultItemsArray!)
                     }
