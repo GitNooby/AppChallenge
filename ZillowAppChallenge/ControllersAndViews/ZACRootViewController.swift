@@ -16,6 +16,8 @@ class ZACRootViewController: UIViewController {
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var mapView: MKMapView!
     
+    var mapViewAnnotations: [String: ZACListingAnnotation] = [:]
+    
     private let regionRadius: CLLocationDistance = 2000
     
     override func viewDidLoad() {
@@ -31,8 +33,7 @@ class ZACRootViewController: UIViewController {
         self.mapView.isHidden = true
         self.mapView.delegate = self
         
-        
-        self.barButtonItem.image = UIImage(named: "iconMapView")
+        self.barButtonItem.image = UIImage(named: "iconMapView")?.withRenderingMode(.alwaysOriginal)
         
         self.layoutUIElements()
         
@@ -62,17 +63,35 @@ class ZACRootViewController: UIViewController {
         if let sender = sender as? UIBarButtonItem {
             if sender == self.barButtonItem {
                 if (self.tableView.isHidden == false && self.mapView.isHidden == true) {
-                    self.tableView.isHidden = true
-                    self.mapView.isHidden = false
-                    self.barButtonItem.image = UIImage(named: "iconListView")
+                    self.animateMapViewToFront()
                 }
                 else {
-                    self.tableView.isHidden = false
-                    self.mapView.isHidden = true
-                    self.barButtonItem.image = UIImage(named: "iconMapView")
+                    self.animateTableViewToFront()
                 }
             }
         }
+    }
+    
+    private func animateTableViewToFront() {
+        UIView.animate(withDuration: 0.8, delay: 0, options: [], animations: {
+            self.tableView.alpha = 1
+            self.mapView.alpha = 0
+        }, completion: { _ in
+            self.tableView.isHidden = false
+            self.mapView.isHidden = true
+        })
+        self.barButtonItem.image = UIImage(named: "iconMapView")?.withRenderingMode(.alwaysOriginal)
+    }
+    
+    private func animateMapViewToFront() {
+        UIView.animate(withDuration: 0.8, delay: 0, options: [], animations: {
+            self.tableView.alpha = 0
+            self.mapView.alpha = 1
+        }, completion: { _ in
+            self.tableView.isHidden = true
+            self.mapView.isHidden = false
+        })
+        self.barButtonItem.image = UIImage(named: "iconListView")?.withRenderingMode(.alwaysOriginal)
     }
     
     private func layoutUIElements() {
@@ -122,14 +141,19 @@ class ZACRootViewController: UIViewController {
             let location = CLLocation(latitude: listing.latitude!, longitude: listing.longitude!)
             let listingAnnotation = ZACListingAnnotation(title: title, subtitle: subtitle, coordinate: location.coordinate)
             self.mapView.addAnnotation(listingAnnotation)
+            self.mapViewAnnotations[listing.id!] = listingAnnotation
         }
         
         let centerLat = totalLat / Double(listings.count)
         let centerLon = totalLon /  Double(listings.count)
         let mapCenter = CLLocation(latitude: centerLat, longitude: centerLon)
-        let region = MKCoordinateRegionMakeWithDistance(mapCenter.coordinate, 2000*2, 2000*2)
-        mapView.setRegion(region, animated: false)
+        self.moveMapCenter(mapCenter.coordinate)
         
+    }
+    
+    private func moveMapCenter(_ mapCenter: CLLocationCoordinate2D) {
+        let region = MKCoordinateRegionMakeWithDistance(mapCenter, 2000*2, 2000*2)
+        mapView.setRegion(region, animated: true)
     }
 
 }
@@ -162,7 +186,17 @@ extension ZACRootViewController: UITableViewDelegate {
     public func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 220  // TODO: probably shouldn't hard code
     }
-//    optional public func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath)
+    
+    public func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let listings = ZACNetworkManager.fetchedListings()
+        let selectedListing = listings[indexPath.row]
+        let location = CLLocation(latitude: selectedListing.latitude!, longitude: selectedListing.longitude!)
+        self.moveMapCenter(location.coordinate)
+        self.animateMapViewToFront()
+        
+        let listingAnnotation = self.mapViewAnnotations[selectedListing.id!]
+        self.mapView.selectAnnotation(listingAnnotation!, animated: true)
+    }
 //    optional public func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath)
 }
 

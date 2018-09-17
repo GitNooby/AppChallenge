@@ -59,9 +59,6 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
     }
     
     func populate(with model: ZACSearchResultItem) {
-        // TODO: async grab the image
-        self.propertyImageView.layer.borderColor = UIColor.red.cgColor
-        self.propertyImageView.layer.borderWidth = 2
         
         if let photoURLPaths = model.photos {
             
