@@ -106,13 +106,26 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
         self.addressLabel.text = "\(model.streetNumber ?? "--") \(model.streetName ?? "--"), \(model.city ?? "--"), \(model.stateCode ?? "--")"
         
         self.priceLabel.isHidden = false
-        self.priceLabel.text = "$\(model.price ?? -1)"  // TODO: handle nils by printing "$ --" instead
+        if let price = model.price {
+            self.priceLabel.text = "$\(price)"
+        } else {
+            self.priceLabel.text = "$ --"
+        }
         
         self.bedroomsLabel.isHidden = false
-        self.bedroomsLabel.text = "\(model.bedrooms ?? -1) bds"  // TODO: handle nils by printing "-- bds" instead
+        if let bedrooms = model.bedrooms {
+            self.bedroomsLabel.text = "\(bedrooms) bds"
+        } else {
+            self.bedroomsLabel.text = "-- bds"
+        }
         
         self.bathroomsLabel.isHidden = false
-        self.bathroomsLabel.text = "\(model.bathrooms ?? -1) ba"
+        
+        if let bathrooms = model.bathrooms {
+            self.bathroomsLabel.text = "\(bathrooms) ba"
+        } else {
+            self.bathroomsLabel.text = "-- ba"
+        }
         
         self.activityIndicator.isHidden = true
         self.activityIndicator.stopAnimating()
