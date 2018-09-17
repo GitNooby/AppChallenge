@@ -29,13 +29,16 @@ fileprivate class LinkedList: NSObject {
     private var tail: LinkedListNode?
     
     func addNodeToTail(_ node: LinkedListNode) {
-        if self.tail == nil {
+        if self.tail == nil && self.head == nil {
             self.tail = node
             self.head = node
+            node.next = nil
+            node.previous = nil
         }
-        else {
-            self.tail?.next = node
+        else if self.tail != nil {
             node.previous = self.tail
+            node.next = nil
+            self.tail?.next = node
             self.tail = node
         }
     }
@@ -87,11 +90,11 @@ class ZACImageCacher: NSObject {
     // Caching to disk
     private var diskCacheLinkedList: LinkedList = LinkedList() // head is least recently used
     private var diskCacheHashTable: [String: LinkedListNode] = [:]  // for quick access
-    private var maxDiskCacheSize: Int = 200
+    private var maxDiskCacheSize: Int = 100
     // Caching to memory
     private var memoryCacheLinkedList: LinkedList = LinkedList()  // head is least recently used
     private var memoryCacheHashTable: [String: LinkedListNode] = [:]  // for quick access
-    private var maxMemoryCacheSize: Int = 50
+    private var maxMemoryCacheSize: Int = 20
     
     // Directory to save cached image files
     private var applicationSupportURL: URL?
@@ -133,15 +136,17 @@ class ZACImageCacher: NSObject {
                 imageCacher.memoryCacheLinkedList.addNodeToTail(imageCacher.memoryCacheLinkedList.removeNode(nodeInMemory))
             }
             else {
+                // Create a new node for memory cache
+                let memoryNode: LinkedListNode = LinkedListNode(nodeOnDisk.sha256Key, originalKey: nodeOnDisk.originalKey, value: nodeOnDisk.value)
                 if nodeOnDisk.image == nil {
                     if image != nil {
-                        nodeOnDisk.image = image
-                    } else {
-                        nodeOnDisk.image = imageCacher.readImageFromDiskForNode(nodeOnDisk)
+                        memoryNode.image = image
                     }
+                } else {
+                    memoryNode.image = nodeOnDisk.image
                 }
-                imageCacher.memoryCacheLinkedList.addNodeToTail(nodeOnDisk)
-                imageCacher.memoryCacheHashTable[sha256Key] = nodeOnDisk
+                imageCacher.memoryCacheLinkedList.addNodeToTail(memoryNode)
+                imageCacher.memoryCacheHashTable[sha256Key] = memoryNode
                 if imageCacher.memoryCacheHashTable.count > imageCacher.maxMemoryCacheSize {
                     let removedNode = imageCacher.memoryCacheLinkedList.removeNodeFromHead()
                     removedNode.image = nil
