@@ -20,35 +20,29 @@ class ZACRootViewController: UIViewController {
     
     private let regionRadius: CLLocationDistance = 2000
     
-    var listingFetchProgress: Progress? = nil
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        self.tableView.register(UINib(nibName: "ZACSearchResultItemTableViewCell", bundle: nil), forCellReuseIdentifier: "SearchResultItemCell")
+        self.tableView.register(UINib(nibName: "ZACSearchResultItemTableViewCell", bundle: nil), forCellReuseIdentifier: Constants.ListingsTableView.listingResultCellID)
         self.tableView.delegate = self
         self.tableView.dataSource = self
-        self.tableView.isHidden = false
+        self.tableView.alpha = 1
+//        self.tableView.isHidden = false
         
         self.mapView.register(ZACListingAnnotationView.self, forAnnotationViewWithReuseIdentifier: MKMapViewDefaultAnnotationViewReuseIdentifier)
         self.mapView.mapType = .mutedStandard
-        self.mapView.isHidden = true
+        self.mapView.alpha = 0
+//        self.mapView.isHidden = true
         self.mapView.delegate = self
         
-        self.barButtonItem.image = UIImage(named: "iconMapView")?.withRenderingMode(.alwaysOriginal)
+        self.barButtonItem.image = UIImage(named: Constants.ImageAssetNames.iconMapView)?.withRenderingMode(.alwaysOriginal)
         
         self.layoutUIElements()
         
         ZACNetworkManager.registerDelegate(self)
         
-        self.listingFetchProgress = ZACNetworkManager.asyncFetchMoreListings()
         ZACImageCacher.clearCache()
-    }
-    
-    func moveMapToLocation(location: CLLocation) {
-        let coordinateRegion = MKCoordinateRegionMakeWithDistance(location.coordinate,
-                                                                  regionRadius*2.0, regionRadius*2)
-        self.mapView.setRegion(coordinateRegion, animated: true)
+        _ = ZACNetworkManager.asyncFetchMoreListings()
     }
     
     override func viewWillLayoutSubviews() {
@@ -58,13 +52,13 @@ class ZACRootViewController: UIViewController {
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
+        ZACImageCacher.clearCache()
     }
     
     @IBAction private func buttonPressed(_ sender: Any) {
         if let sender = sender as? UIBarButtonItem {
             if sender == self.barButtonItem {
-                if (self.tableView.isHidden == false && self.mapView.isHidden == true) {
+                if (self.tableView.alpha == 1 && self.mapView.alpha == 0) {
                     self.animateMapViewToFront()
                 }
                 else {
@@ -75,25 +69,33 @@ class ZACRootViewController: UIViewController {
     }
     
     private func animateTableViewToFront() {
-        UIView.animate(withDuration: 0.8, delay: 0, options: [], animations: {
-            self.tableView.alpha = 1
+        UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseOut], animations: {
             self.mapView.alpha = 0
         }, completion: { _ in
-            self.tableView.isHidden = false
-            self.mapView.isHidden = true
+            UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseIn], animations: {
+                self.tableView.alpha = 1
+            }, completion: { _ in
+                self.mapView.alpha = 0
+                self.tableView.alpha = 1
+            })
+            
         })
-        self.barButtonItem.image = UIImage(named: "iconMapView")?.withRenderingMode(.alwaysOriginal)
+        self.barButtonItem.image = UIImage(named: Constants.ImageAssetNames.iconMapView)?.withRenderingMode(.alwaysOriginal)
     }
     
     private func animateMapViewToFront() {
-        UIView.animate(withDuration: 0.8, delay: 0, options: [], animations: {
+        UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseOut], animations: {
             self.tableView.alpha = 0
-            self.mapView.alpha = 1
         }, completion: { _ in
-            self.tableView.isHidden = true
-            self.mapView.isHidden = false
+            UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseIn], animations: {
+                self.mapView.alpha = 1
+            }, completion: { _ in
+                self.tableView.alpha = 0
+                self.mapView.alpha = 1
+            })
+            
         })
-        self.barButtonItem.image = UIImage(named: "iconListView")?.withRenderingMode(.alwaysOriginal)
+        self.barButtonItem.image = UIImage(named: Constants.ImageAssetNames.iconListView)?.withRenderingMode(.alwaysOriginal)
     }
     
     private func layoutUIElements() {
@@ -120,10 +122,11 @@ class ZACRootViewController: UIViewController {
     }
     
     private func addListingsToMapView(_ listings: [ZACSearchResultItem]) {
-        self.mapView.removeAnnotations(self.mapView.annotations)
         if listings.count == 0 {
             return
         }
+        
+        self.mapView.removeAnnotations(self.mapView.annotations)
         
         var totalLat: Double = 0;
         var totalLon: Double = 0;
@@ -162,19 +165,18 @@ class ZACRootViewController: UIViewController {
 
 extension ZACRootViewController: ZACNetworkManagerDelegate {
     func networkManager(_ networkManager: ZACNetworkManager, fetchedResults results: [ZACSearchResultItem]) {
-        self.addListingsToMapView(networkManager.searchResultItemsArray!)
+        self.addListingsToMapView(ZACNetworkManager.fetchedListings())
         self.tableView.reloadData()
-        self.listingFetchProgress = nil
     }
 }
 
 extension ZACRootViewController: UITableViewDataSource {
-    public func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return ZACNetworkManager.fetchedListings().count
     }
     
-    public func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell: ZACSearchResultItemTableViewCell = tableView.dequeueReusableCell(withIdentifier: "SearchResultItemCell", for: indexPath) as! ZACSearchResultItemTableViewCell
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell: ZACSearchResultItemTableViewCell = tableView.dequeueReusableCell(withIdentifier: Constants.ListingsTableView.listingResultCellID, for: indexPath) as! ZACSearchResultItemTableViewCell
         
         cell.unpopulate()
         let searchResultItem: [ZACSearchResultItem] = ZACNetworkManager.fetchedListings()
@@ -190,7 +192,7 @@ extension ZACRootViewController: UITableViewDelegate {
         return 220  // TODO: probably shouldn't hard code
     }
     
-    public func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let listings = ZACNetworkManager.fetchedListings()
         let selectedListing = listings[indexPath.row]
         let location = CLLocation(latitude: selectedListing.latitude!, longitude: selectedListing.longitude!)
@@ -205,12 +207,7 @@ extension ZACRootViewController: UITableViewDelegate {
         // When we're about to load the 5th last item, do another fetch for more listings
         let distanceFromLastItem = (ZACNetworkManager.fetchedListings().count - 1) - indexPath.row
         if distanceFromLastItem <= 5 {
-            if self.listingFetchProgress == nil || self.listingFetchProgress?.fractionCompleted == 1.0 {
-               self.listingFetchProgress = ZACNetworkManager.asyncFetchMoreListings()
-            }
-            else {
-                print("we're already in the middle of a fetch")
-            }
+            _ = ZACNetworkManager.asyncFetchMoreListings()
         }
     }
 }

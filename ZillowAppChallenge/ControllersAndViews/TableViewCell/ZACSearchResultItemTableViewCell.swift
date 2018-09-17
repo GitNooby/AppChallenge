@@ -60,6 +60,35 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
     
     func populate(with model: ZACSearchResultItem) {
         
+        self.addressLabel.isHidden = false
+        self.addressLabel.text = "\(model.streetNumber ?? "--") \(model.streetName ?? "--"), \(model.city ?? "--"), \(model.stateCode ?? "--")"
+        
+        self.priceLabel.isHidden = false
+        if let price = model.price {
+            self.priceLabel.text = "$\(price)"
+        } else {
+            self.priceLabel.text = "$ --"
+        }
+        
+        self.bedroomsLabel.isHidden = false
+        if let bedrooms = model.bedrooms {
+            self.bedroomsLabel.text = "\(bedrooms) bds"
+        } else {
+            self.bedroomsLabel.text = "-- bds"
+        }
+        
+        self.bathroomsLabel.isHidden = false
+        
+        if let bathrooms = model.bathrooms {
+            self.bathroomsLabel.text = "\(bathrooms) ba"
+        } else {
+            self.bathroomsLabel.text = "-- ba"
+        }
+        
+        self.activityIndicator.isHidden = true
+        self.activityIndicator.stopAnimating()
+        
+        // try to load photo from cache, if not cached, async download the photo
         if let photoURLPaths = model.photos {
             
             DispatchQueue.global(qos: .userInteractive).async {
@@ -91,44 +120,17 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
                             self.dispatchGroup.leave()
                         }
                         imageDownloadTask.resume()
+                        self.urlSessionImageDownloadTask = imageDownloadTask
                         self.dispatchGroup.wait()
                         if (imageDownloadTask.state == .canceling || self.imageDownloadedSuccess == true) {
                             break // break for loop, we only need one good image to display
                         }
-                        self.urlSessionImageDownloadTask = imageDownloadTask
                     }
                 }
             }
             
         }
-        
-        self.addressLabel.isHidden = false
-        self.addressLabel.text = "\(model.streetNumber ?? "--") \(model.streetName ?? "--"), \(model.city ?? "--"), \(model.stateCode ?? "--")"
-        
-        self.priceLabel.isHidden = false
-        if let price = model.price {
-            self.priceLabel.text = "$\(price)"
-        } else {
-            self.priceLabel.text = "$ --"
-        }
-        
-        self.bedroomsLabel.isHidden = false
-        if let bedrooms = model.bedrooms {
-            self.bedroomsLabel.text = "\(bedrooms) bds"
-        } else {
-            self.bedroomsLabel.text = "-- bds"
-        }
-        
-        self.bathroomsLabel.isHidden = false
-        
-        if let bathrooms = model.bathrooms {
-            self.bathroomsLabel.text = "\(bathrooms) ba"
-        } else {
-            self.bathroomsLabel.text = "-- ba"
-        }
-        
-        self.activityIndicator.isHidden = true
-        self.activityIndicator.stopAnimating()
+
     }
     
 }

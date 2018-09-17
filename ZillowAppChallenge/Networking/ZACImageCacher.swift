@@ -8,93 +8,22 @@
 
 import UIKit
 
-fileprivate class LinkedListNode: NSObject {
-    var sha256Key: String
-    var originalKey: String
-    var value: URL
-    var image: UIImage?
-    var next: LinkedListNode?
-    var previous: LinkedListNode?
-    
-    init(_ sha256Key: String, originalKey: String, value: URL) {
-        self.sha256Key = sha256Key
-        self.originalKey = originalKey
-        self.value = value
-        super.init()
-    }
-}
-
-fileprivate class LinkedList: NSObject {
-    private var head: LinkedListNode?
-    private var tail: LinkedListNode?
-    
-    func addNodeToTail(_ node: LinkedListNode) {
-        if self.tail == nil && self.head == nil {
-            self.tail = node
-            self.head = node
-            node.next = nil
-            node.previous = nil
-        }
-        else if self.tail != nil {
-            node.previous = self.tail
-            node.next = nil
-            self.tail?.next = node
-            self.tail = node
-        }
-    }
-    
-    func removeNodeFromHead() -> LinkedListNode {
-        return self.removeNode(self.head!)
-    }
-    
-    func removeNode(_ node: LinkedListNode) -> LinkedListNode {
-        if node.previous == nil && node.next == nil && self.tail == self.head && self.tail == node {
-            self.head = nil
-            self.tail = nil
-        }
-        else if node.previous != nil && node.next == nil {
-            assert(node == self.tail, "Error state for linked list")
-            node.previous?.next = nil
-            self.tail = node.previous
-            node.previous = nil
-        }
-        else if node.next != nil && node.previous == nil {
-            assert(node == self.head, "Error state for linked list")
-            node.next?.previous = nil
-            self.head = node.next
-            node.next = nil
-        }
-        else if node.previous != nil && node.next != nil {
-            node.previous?.next = node.next
-            node.next?.previous = node.previous
-        }
-        else {
-            assert(false, "LinkedList error state")
-        }
-        node.next = nil
-        node.previous = nil
-        return node
-    }
-    
-    func removeAllNodes() {
-        while self.head != nil {
-            _ = self.removeNode(self.head!)
-        }
-    }
-    
-}
-
+/**
+ ImageCacher caches to memory (L1) and disk (L2).
+ ImageCacher should be treated as a singleton.
+ ImageCacher does NOT maintain state between app launches, so all cached images are lost after app quits.
+ Cache evection rule: LRU
+ */
 class ZACImageCacher: NSObject {
-    // Evection rule: LRU Cacher
-    
+
     // Caching to disk
     private var diskCacheLinkedList: LinkedList = LinkedList() // head is least recently used
     private var diskCacheHashTable: [String: LinkedListNode] = [:]  // for quick access
-    private var maxDiskCacheSize: Int = 100
+    private var maxDiskCacheSize: Int = Constants.ImageCacher.maxDiskCacheSize
     // Caching to memory
     private var memoryCacheLinkedList: LinkedList = LinkedList()  // head is least recently used
     private var memoryCacheHashTable: [String: LinkedListNode] = [:]  // for quick access
-    private var maxMemoryCacheSize: Int = 20
+    private var maxMemoryCacheSize: Int = Constants.ImageCacher.maxMemoryCacheSize
     
     // Directory to save cached image files
     private var applicationSupportURL: URL?
@@ -250,6 +179,82 @@ class ZACImageCacher: NSObject {
     }
 }
 
+fileprivate class LinkedListNode: NSObject {
+    var sha256Key: String
+    var originalKey: String
+    var value: URL
+    var image: UIImage?
+    var next: LinkedListNode?
+    var previous: LinkedListNode?
+    
+    init(_ sha256Key: String, originalKey: String, value: URL) {
+        self.sha256Key = sha256Key
+        self.originalKey = originalKey
+        self.value = value
+        super.init()
+    }
+}
+
+fileprivate class LinkedList: NSObject {
+    private var head: LinkedListNode?
+    private var tail: LinkedListNode?
+    
+    func addNodeToTail(_ node: LinkedListNode) {
+        if self.tail == nil && self.head == nil {
+            self.tail = node
+            self.head = node
+            node.next = nil
+            node.previous = nil
+        }
+        else if self.tail != nil {
+            node.previous = self.tail
+            node.next = nil
+            self.tail?.next = node
+            self.tail = node
+        }
+    }
+    
+    func removeNodeFromHead() -> LinkedListNode {
+        return self.removeNode(self.head!)
+    }
+    
+    func removeNode(_ node: LinkedListNode) -> LinkedListNode {
+        if node.previous == nil && node.next == nil && self.tail == self.head && self.tail == node {
+            self.head = nil
+            self.tail = nil
+        }
+        else if node.previous != nil && node.next == nil {
+            assert(node == self.tail, "Error state for linked list")
+            node.previous?.next = nil
+            self.tail = node.previous
+            node.previous = nil
+        }
+        else if node.next != nil && node.previous == nil {
+            assert(node == self.head, "Error state for linked list")
+            node.next?.previous = nil
+            self.head = node.next
+            node.next = nil
+        }
+        else if node.previous != nil && node.next != nil {
+            node.previous?.next = node.next
+            node.next?.previous = node.previous
+        }
+        else {
+            assert(false, "LinkedList error state")
+        }
+        node.next = nil
+        node.previous = nil
+        return node
+    }
+    
+    func removeAllNodes() {
+        while self.head != nil {
+            _ = self.removeNode(self.head!)
+        }
+    }
+}
+
+// Taken from: https://stackoverflow.com/questions/25388747/sha256-in-swift
 extension String {
     
     func sha256() -> String{
