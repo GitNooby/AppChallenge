@@ -85,8 +85,8 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
                             }
                             else if let fileURL = fileURL, let data = try? Data(contentsOf: fileURL) {
                                 self.imageDownloadedSuccess = true
-                                ZACImageCacher.cacheImage(fileURL, withKey: urlPath)
                                 let image = UIImage(data: data)
+                                ZACImageCacher.cacheImage(fileURL, withImage: image, withKey: urlPath)
                                 DispatchQueue.main.async {
                                     self.propertyImageView.image = image
                                 }
