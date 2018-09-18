@@ -8,6 +8,10 @@
 
 import UIKit
 
+/**
+ Each ZACSearchResultItem represents one listing.
+ Do not create your own instances, these are given to you by the delegate callback of ZACNetworkManager or by calling ZACNetworkManager.currentlyFetchedListings().
+ */
 class ZACSearchResultItem: NSObject, Codable {
     var bathrooms: Int?  // Number of bathrooms
     var bedrooms: Int?  // Number of bedrooms

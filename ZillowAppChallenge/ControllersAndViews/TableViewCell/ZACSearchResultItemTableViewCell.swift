@@ -94,16 +94,7 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
             DispatchQueue.global(qos: .userInteractive).async { [weak self] in
                 for urlPath: String in photoURLPaths {
                     
-                    var image: UIImage?
-                    
-                    self?.dispatchGroup.enter()
-                    ZACImageCacher.fetchImage(urlPath, completion: { (resultImage: UIImage?) in
-                        image = resultImage
-                        self?.dispatchGroup.leave()
-                    })
-                    self?.dispatchGroup.wait()
-                    
-                    if let image = image {
+                    if let image = ZACImageCacher.fetchImage(urlPath) {
                         DispatchQueue.main.async {
                             self?.propertyImageView.image = image
                         }

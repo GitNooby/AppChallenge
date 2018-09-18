@@ -164,21 +164,21 @@ class ZACRootViewController: UIViewController {
 
 extension ZACRootViewController: ZACNetworkManagerDelegate {
     func networkManager(_ networkManager: ZACNetworkManager, fetchedResults results: [ZACSearchResultItem]) {
-        self.addListingsToMapView(ZACNetworkManager.fetchedListings())
+        self.addListingsToMapView(ZACNetworkManager.currentlyFetchedListings())
         self.tableView.reloadData()
     }
 }
 
 extension ZACRootViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return ZACNetworkManager.fetchedListings().count
+        return ZACNetworkManager.currentlyFetchedListings().count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell: ZACSearchResultItemTableViewCell = tableView.dequeueReusableCell(withIdentifier: Constants.ListingsTableView.listingResultCellID, for: indexPath) as! ZACSearchResultItemTableViewCell
         
         cell.unpopulate()
-        let searchResultItem: [ZACSearchResultItem] = ZACNetworkManager.fetchedListings()
+        let searchResultItem: [ZACSearchResultItem] = ZACNetworkManager.currentlyFetchedListings()
         cell.populate(with: searchResultItem[indexPath.row])
         
         return cell
@@ -192,7 +192,7 @@ extension ZACRootViewController: UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let listings = ZACNetworkManager.fetchedListings()
+        let listings = ZACNetworkManager.currentlyFetchedListings()
         let selectedListing = listings[indexPath.row]
         let location = CLLocation(latitude: selectedListing.latitude!, longitude: selectedListing.longitude!)
         self.moveMapCenter(location.coordinate)
@@ -204,7 +204,7 @@ extension ZACRootViewController: UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
         // When we're about to load the 5th last item, do another fetch for more listings
-        let distanceFromLastItem = (ZACNetworkManager.fetchedListings().count - 1) - indexPath.row
+        let distanceFromLastItem = (ZACNetworkManager.currentlyFetchedListings().count - 1) - indexPath.row
         if distanceFromLastItem <= 5 {
             ZACNetworkManager.fetchMoreListings()
         }

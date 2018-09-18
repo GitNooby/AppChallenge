@@ -15,7 +15,7 @@ struct Constants {
     }
     
     struct ImageCacher {
-        static let maxMemoryCacheSize: Int = 1000
+        static let maxMemoryCachedImages: Int = 1000
     }
     
     struct ListingsTableView {

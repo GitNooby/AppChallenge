@@ -27,22 +27,30 @@ class ZACNetworkManager: NSObject {
 
     weak var delegate: ZACNetworkManagerDelegate?
     private var incompleteTasksDataDictionary: [Int : Data]  // Key is URLSessionDataTask's taskIdentifier
-    private var urlSession: URLSession?
+    private var urlSession: URLSession?  // Session used for fetching JSON from endpoint
     private var searchResultItemsArray: [ZACSearchResultItem]  // The array of fetched results
-    private var searchResultItemsDictionary: [String: ZACSearchResultItem]  // Key is ZACSearchResultItem's id string
+    private var searchResultItemsDictionary: [String: ZACSearchResultItem]  // Key is ZACSearchResultItem's id string, we use this dictionary to ensure no duplicates are saved to searchResultItemsArray
     private var pageNumber: Int  // Tracking paging
     
-    // Resolve producer-consumer thread issue with serial queue
+    // Serial queue used to ensure only one thread is modifying this singleton
     private let serialLockQueue: DispatchQueue = DispatchQueue(label: "com.kaizou.ZillowAppChallenge.ZACNetworkManager")
     
     // MARK: - Public class functions
     
+    /**
+     Assigns a delegate to receive call backs from network requests.
+     - Parameter delegate: the delegate to be assigned, the delegate is weakly referenced.
+     */
     class func registerDelegate(_ delegate: ZACNetworkManagerDelegate) {
         sharedNetworkManager.serialLockQueue.sync { [weak sharedNetworkManager] in
             sharedNetworkManager?.delegate = delegate
         }
     }
     
+    /**
+     Makes network request to endpoint for more JSON listings.
+     Make sure ZACNetworkManager's delegate is assigned to received response callbacks
+     */
     class func fetchMoreListings() {
         sharedNetworkManager.serialLockQueue.sync { [weak sharedNetworkManager] in
             var fetchListingRequest = URLComponents(string: Constants.NetworkManager.endpointURL.string!)
@@ -60,7 +68,11 @@ class ZACNetworkManager: NSObject {
         }
     }
     
-    class func fetchedListings() -> [ZACSearchResultItem] {
+    /**
+     Returns the current array of items representing listings from network responses.
+     The items are updated as more responses come back.
+     */
+    class func currentlyFetchedListings() -> [ZACSearchResultItem] {
         return sharedNetworkManager.serialLockQueue.sync { [weak sharedNetworkManager] in
             return sharedNetworkManager!.searchResultItemsArray
         }
@@ -72,6 +84,7 @@ class ZACNetworkManager: NSObject {
         return ZACNetworkManager()
     }()
     
+    // Prevent creation of instances outside the scope of this class
     private override init() {
         self.incompleteTasksDataDictionary = [:]
         self.searchResultItemsArray = []

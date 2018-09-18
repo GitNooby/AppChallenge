@@ -17,9 +17,9 @@ import UIKit
 class ZACImageCacher: NSObject {
 
     // Caching to memory
-    private var memoryCacheLinkedList: LinkedList = LinkedList()  // head is least recently used
-    private var memoryCacheHashTable: [String: LinkedListNode] = [:]  // for quick access
-    private var maxMemoryCacheSize: Int = Constants.ImageCacher.maxMemoryCacheSize
+    private var memoryCacheLinkedList: LinkedList = LinkedList()  // head is least recently used image
+    private var memoryCacheHashTable: [String: LinkedListNode] = [:]  // For quick access of cached images
+    private var maxMemoryCachedImages: Int = Constants.ImageCacher.maxMemoryCachedImages
     // Serial DispatchQueue to ensure only one thread is modifying the cache at a time
     private let serialLockQueue: DispatchQueue = DispatchQueue(label: "com.kaizou.ZillowAppChallenge.ZACImageCacherSerialQueue")
     
@@ -50,8 +50,8 @@ class ZACImageCacher: NSObject {
                 let cachedImageNode: LinkedListNode = LinkedListNode(key, image: image!)
                 sharedImageCacher?.memoryCacheLinkedList.addNodeToTail(cachedImageNode)
                 sharedImageCacher?.memoryCacheHashTable[key] = cachedImageNode
-                // Enfoce cache LRU eviction rule
-                if (sharedImageCacher?.memoryCacheHashTable.count)! > (sharedImageCacher?.maxMemoryCacheSize)! {
+                // Enforce cache LRU eviction rule
+                if (sharedImageCacher?.memoryCacheHashTable.count)! > (sharedImageCacher?.maxMemoryCachedImages)! {
                     let removedNode = sharedImageCacher?.memoryCacheLinkedList.removeNodeFromHead()
                     sharedImageCacher?.memoryCacheHashTable[(removedNode?.key)!] = nil
                 }
@@ -59,16 +59,30 @@ class ZACImageCacher: NSObject {
         }
     }
     
-    class func fetchImage(_ key:String, completion: @escaping (_ image: UIImage?) -> Void ) {
-        sharedImageCacher.serialLockQueue.sync { [weak sharedImageCacher] in
-            
+//    class func fetchImage(_ key:String, completion: @escaping (_ image: UIImage?) -> Void ) {
+//        // Ensure only one thread is modifying the cache
+//        sharedImageCacher.serialLockQueue.sync { [weak sharedImageCacher] in
+//            // Try to fetch from memory first
+//            if let node = sharedImageCacher?.memoryCacheHashTable[key] {
+//                sharedImageCacher?.memoryCacheLinkedList.addNodeToTail(node)
+//                completion(node.image)
+//                return
+//            }
+//            // In case no matching image for key was found in the cache
+//            completion(nil)
+//        }
+//    }
+    
+    class func fetchImage(_ key: String) -> UIImage? {
+        // Ensure only one thread is modifying the cache
+        return sharedImageCacher.serialLockQueue.sync { [weak sharedImageCacher] in
             // Try to fetch from memory first
             if let node = sharedImageCacher?.memoryCacheHashTable[key] {
                 sharedImageCacher?.memoryCacheLinkedList.addNodeToTail(node)
-                completion(node.image)
-                return
+                return node.image
             }
-            completion(nil)
+            // In case no matching image for key was found in the cache
+            return nil
         }
     }
     
@@ -78,6 +92,7 @@ class ZACImageCacher: NSObject {
         return ZACImageCacher()
     }()
     
+    // Prevent creation of instances outside the scope of this class
     private override init() {
         super.init()
     }
