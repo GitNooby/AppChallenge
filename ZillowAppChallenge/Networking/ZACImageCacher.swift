@@ -26,12 +26,11 @@ class ZACImageCacher: NSObject {
     // Mark: LRU cache interface
     
     class func clearCache() {
-        let imageCacher = ZACImageCacher.shared()
         // Ensure only one thread is modifying the cache
-        imageCacher.serialLockQueue.sync { [weak imageCacher] in
+        sharedImageCacher.serialLockQueue.sync { [weak sharedImageCacher] in
             // Clear memory cache
-            imageCacher?.memoryCacheLinkedList.removeAllNodes()
-            imageCacher?.memoryCacheHashTable.removeAll()
+            sharedImageCacher?.memoryCacheLinkedList.removeAllNodes()
+            sharedImageCacher?.memoryCacheHashTable.removeAll()
         }
     }
     
@@ -39,36 +38,33 @@ class ZACImageCacher: NSObject {
         if image == nil {
             return
         }
-        let imageCacher = ZACImageCacher.shared()
         
         // Ensure only one thread is modifying the cache
-        imageCacher.serialLockQueue.sync { [weak imageCacher] in
+        sharedImageCacher.serialLockQueue.sync { [weak sharedImageCacher] in
             
-            if let cachedImageNode = imageCacher?.memoryCacheHashTable[key] {
-                imageCacher?.memoryCacheLinkedList.addNodeToTail((imageCacher?.memoryCacheLinkedList.removeNode(cachedImageNode))!)
+            if let cachedImageNode = sharedImageCacher?.memoryCacheHashTable[key] {
+                sharedImageCacher?.memoryCacheLinkedList.addNodeToTail((sharedImageCacher?.memoryCacheLinkedList.removeNode(cachedImageNode))!)
             }
             else {
                 // Create a new node and add it to the cache
                 let cachedImageNode: LinkedListNode = LinkedListNode(key, image: image!)
-                imageCacher?.memoryCacheLinkedList.addNodeToTail(cachedImageNode)
-                imageCacher?.memoryCacheHashTable[key] = cachedImageNode
+                sharedImageCacher?.memoryCacheLinkedList.addNodeToTail(cachedImageNode)
+                sharedImageCacher?.memoryCacheHashTable[key] = cachedImageNode
                 // Enfoce cache LRU eviction rule
-                if (imageCacher?.memoryCacheHashTable.count)! > (imageCacher?.maxMemoryCacheSize)! {
-                    let removedNode = imageCacher?.memoryCacheLinkedList.removeNodeFromHead()
-                    imageCacher?.memoryCacheHashTable[(removedNode?.key)!] = nil
+                if (sharedImageCacher?.memoryCacheHashTable.count)! > (sharedImageCacher?.maxMemoryCacheSize)! {
+                    let removedNode = sharedImageCacher?.memoryCacheLinkedList.removeNodeFromHead()
+                    sharedImageCacher?.memoryCacheHashTable[(removedNode?.key)!] = nil
                 }
             }
         }
     }
     
     class func fetchImage(_ key:String, completion: @escaping (_ image: UIImage?) -> Void ) {
-        let imageCacher = ZACImageCacher.shared()
-        
-        imageCacher.serialLockQueue.sync { [weak imageCacher] in
+        sharedImageCacher.serialLockQueue.sync { [weak sharedImageCacher] in
             
             // Try to fetch from memory first
-            if let node = imageCacher?.memoryCacheHashTable[key] {
-                imageCacher?.memoryCacheLinkedList.addNodeToTail(node)
+            if let node = sharedImageCacher?.memoryCacheHashTable[key] {
+                sharedImageCacher?.memoryCacheLinkedList.addNodeToTail(node)
                 completion(node.image)
                 return
             }
@@ -84,10 +80,6 @@ class ZACImageCacher: NSObject {
     
     private override init() {
         super.init()
-    }
-    
-    private class func shared() -> ZACImageCacher {
-        return self.sharedImageCacher
     }
     
 }

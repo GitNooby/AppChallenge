@@ -41,7 +41,7 @@ class ZACRootViewController: UIViewController {
         ZACNetworkManager.registerDelegate(self)
         
         ZACImageCacher.clearCache()
-        _ = ZACNetworkManager.asyncFetchMoreListings()
+        ZACNetworkManager.fetchMoreListings()
     }
     
     override func viewWillLayoutSubviews() {
@@ -206,7 +206,7 @@ extension ZACRootViewController: UITableViewDelegate {
         // When we're about to load the 5th last item, do another fetch for more listings
         let distanceFromLastItem = (ZACNetworkManager.fetchedListings().count - 1) - indexPath.row
         if distanceFromLastItem <= 5 {
-            _ = ZACNetworkManager.asyncFetchMoreListings()
+            ZACNetworkManager.fetchMoreListings()
         }
     }
 }
