@@ -28,21 +28,26 @@ class ZACImageCacher: NSObject {
     // Directory to save cached image files
     private var applicationSupportURL: URL?
     
+    // Serial DispatchQueue to ensure only one thread is modifying the cache at a time
+    private let serialQueue: DispatchQueue = DispatchQueue(label: "com.kaizou.ZillowAppChallenge.ZACImageCacherSerialQueue")
+    
     // Mark: LRU cache interface
     
     class func clearCache() {
         let imageCacher = ZACImageCacher.shared()
         
-        // Clear memory cache
-        imageCacher.memoryCacheLinkedList.removeAllNodes()
-        imageCacher.memoryCacheHashTable.removeAll()
-        
-        // Clear disk cache
-        imageCacher.diskCacheLinkedList.removeAllNodes()
-        imageCacher.diskCacheHashTable.removeAll()
-
-        // Remove all saved image files on disk
-        imageCacher.clearAllFilesFromApplicationSupportDirectory()
+        imageCacher.serialQueue.async { [weak imageCacher] in
+            // Clear memory cache
+            imageCacher?.memoryCacheLinkedList.removeAllNodes()
+            imageCacher?.memoryCacheHashTable.removeAll()
+            
+            // Clear disk cache
+            imageCacher?.diskCacheLinkedList.removeAllNodes()
+            imageCacher?.diskCacheHashTable.removeAll()
+            
+            // Remove all saved image files on disk
+            imageCacher?.clearAllFilesFromApplicationSupportDirectory()
+        }
     }
     
     class func cacheImage(_ imageFileURL: URL, withImage image:UIImage?, withKey key: String ) {
@@ -57,83 +62,89 @@ class ZACImageCacher: NSObject {
         let sha256Key: String = key.sha256()
         let imageCacher = ZACImageCacher.shared()
         
-        // If the file is already cached on disk, move it to tail to mark as most recently used
-        if let nodeOnDisk = imageCacher.diskCacheHashTable[sha256Key] {
-            imageCacher.diskCacheLinkedList.addNodeToTail(imageCacher.diskCacheLinkedList.removeNode(nodeOnDisk))
-            
-            if let nodeInMemory = imageCacher.memoryCacheHashTable[sha256Key] {
-                imageCacher.memoryCacheLinkedList.addNodeToTail(imageCacher.memoryCacheLinkedList.removeNode(nodeInMemory))
+        imageCacher.serialQueue.async { [weak imageCacher] in
+            // If the file is already cached on disk, move it to tail to mark as most recently used
+            if let nodeOnDisk = imageCacher?.diskCacheHashTable[sha256Key] {
+                imageCacher?.diskCacheLinkedList.addNodeToTail((imageCacher?.diskCacheLinkedList.removeNode(nodeOnDisk))!)
+                
+                if let nodeInMemory = imageCacher?.memoryCacheHashTable[sha256Key] {
+                    imageCacher?.memoryCacheLinkedList.addNodeToTail((imageCacher?.memoryCacheLinkedList.removeNode(nodeInMemory))!)
+                }
+                else {
+                    // Create a new node for memory cache
+                    let memoryNode: LinkedListNode = LinkedListNode(nodeOnDisk.sha256Key, originalKey: nodeOnDisk.originalKey, value: nodeOnDisk.value)
+                    if nodeOnDisk.image == nil {
+                        if image != nil {
+                            memoryNode.image = image
+                        }
+                    } else {
+                        memoryNode.image = nodeOnDisk.image
+                    }
+                    imageCacher?.memoryCacheLinkedList.addNodeToTail(memoryNode)
+                    imageCacher?.memoryCacheHashTable[sha256Key] = memoryNode
+                    if (imageCacher?.memoryCacheHashTable.count)! > (imageCacher?.maxMemoryCacheSize)! {
+                        let removedNode = imageCacher?.memoryCacheLinkedList.removeNodeFromHead()
+                        removedNode?.image = nil
+                        imageCacher?.memoryCacheHashTable[(removedNode?.sha256Key)!] = nil
+                    }
+                }
+                return
             }
             else {
+                // Move file to application support directory
+                let newURL: URL = URL(string: sha256Key, relativeTo: imageCacher?.applicationSupportURL)!
+                do {
+                    try FileManager.default.moveItem(at: imageFileURL, to: newURL)
+                }
+                catch let error as NSError {
+                    assert(false, "TODO: this should be graceful: \(error.localizedDescription)")
+                }
+                
+                // Create a new node for disk cache
+                let diskNode: LinkedListNode = LinkedListNode(sha256Key, originalKey: key, value: newURL)
+                // Disk cache LRU enforcement
+                imageCacher?.diskCacheLinkedList.addNodeToTail(diskNode)
+                imageCacher?.diskCacheHashTable[sha256Key] = diskNode
+                if (imageCacher?.diskCacheHashTable.count)! > (imageCacher?.maxDiskCacheSize)! {
+                    let removedNode = imageCacher?.diskCacheLinkedList.removeNodeFromHead()
+                    imageCacher?.deleteFileForNode(removedNode!)
+                    imageCacher?.diskCacheHashTable[(removedNode?.sha256Key)!] = nil
+                }
+                
                 // Create a new node for memory cache
-                let memoryNode: LinkedListNode = LinkedListNode(nodeOnDisk.sha256Key, originalKey: nodeOnDisk.originalKey, value: nodeOnDisk.value)
-                if nodeOnDisk.image == nil {
-                    if image != nil {
-                        memoryNode.image = image
-                    }
-                } else {
-                    memoryNode.image = nodeOnDisk.image
+                let memoryNode: LinkedListNode = LinkedListNode(sha256Key, originalKey: key, value: newURL)
+                // Memory cache LRU enforcement
+                imageCacher?.memoryCacheLinkedList.addNodeToTail(memoryNode)
+                imageCacher?.memoryCacheHashTable[sha256Key] = memoryNode
+                if (imageCacher?.memoryCacheHashTable.count)! > (imageCacher?.maxMemoryCacheSize)! {
+                    let removedNode = imageCacher?.memoryCacheLinkedList.removeNodeFromHead()
+                    removedNode?.image = nil
+                    imageCacher?.memoryCacheHashTable[(removedNode?.sha256Key)!] = nil
                 }
-                imageCacher.memoryCacheLinkedList.addNodeToTail(memoryNode)
-                imageCacher.memoryCacheHashTable[sha256Key] = memoryNode
-                if imageCacher.memoryCacheHashTable.count > imageCacher.maxMemoryCacheSize {
-                    let removedNode = imageCacher.memoryCacheLinkedList.removeNodeFromHead()
-                    removedNode.image = nil
-                    imageCacher.memoryCacheHashTable[removedNode.sha256Key] = nil
-                }
-            }
-            return
-        }
-        else {
-            // Move file to application support directory
-            let newURL: URL = URL(string: sha256Key, relativeTo: imageCacher.applicationSupportURL)!
-            do {
-                try FileManager.default.moveItem(at: imageFileURL, to: newURL)
-            }
-            catch let error as NSError {
-                assert(false, "TODO: this should be graceful: \(error.localizedDescription)")
-            }
-            
-            // Create a new node for disk cache
-            let diskNode: LinkedListNode = LinkedListNode(sha256Key, originalKey: key, value: newURL)
-            // Disk cache LRU enforcement
-            imageCacher.diskCacheLinkedList.addNodeToTail(diskNode)
-            imageCacher.diskCacheHashTable[sha256Key] = diskNode
-            if imageCacher.diskCacheHashTable.count > imageCacher.maxDiskCacheSize {
-                let removedNode = imageCacher.diskCacheLinkedList.removeNodeFromHead()
-                imageCacher.deleteFileForNode(removedNode)
-                imageCacher.diskCacheHashTable[removedNode.sha256Key] = nil
-            }
-            
-            // Create a new node for memory cache
-            let memoryNode: LinkedListNode = LinkedListNode(sha256Key, originalKey: key, value: newURL)
-            // Memory cache LRU enforcement
-            imageCacher.memoryCacheLinkedList.addNodeToTail(memoryNode)
-            imageCacher.memoryCacheHashTable[sha256Key] = memoryNode
-            if imageCacher.memoryCacheHashTable.count > imageCacher.maxMemoryCacheSize {
-                let removedNode = imageCacher.memoryCacheLinkedList.removeNodeFromHead()
-                removedNode.image = nil
-                imageCacher.memoryCacheHashTable[removedNode.sha256Key] = nil
             }
         }
     }
     
-    class func fetchImage(_ key: String) -> UIImage? {
+    class func fetchImage(_ key:String, completion: @escaping (_ image: UIImage?) -> Void ) {
         //  Convert all input keys to sha256 so we don't have to worry about weird characters in file names
         let sha256Key: String = key.sha256()
         let imageCacher = ZACImageCacher.shared()
         
-        // Try to fetch from memory first
-        if let node = imageCacher.memoryCacheHashTable[sha256Key] {
-            ZACImageCacher.cacheImage(node.value, withImage: node.image, withKey: node.originalKey)
-            return node.image
+        imageCacher.serialQueue.async { [weak imageCacher] in
+            // Try to fetch from memory first
+            if let node = imageCacher?.memoryCacheHashTable[sha256Key] {
+                ZACImageCacher.cacheImage(node.value, withImage: node.image, withKey: node.originalKey)
+                completion(node.image)
+                return
+            }
+            else if let node = imageCacher?.diskCacheHashTable[sha256Key] {
+                let image = imageCacher?.readImageFromDiskForNode(node)
+                ZACImageCacher.cacheImage(node.value, withImage: image, withKey: node.originalKey)
+                completion(image)
+                return
+            }
+            completion(nil)
         }
-        else if let node = imageCacher.diskCacheHashTable[sha256Key] {
-            let image = imageCacher.readImageFromDiskForNode(node)
-            ZACImageCacher.cacheImage(node.value, withImage: image, withKey: node.originalKey)
-            return image
-        }
-        return nil
     }
     
     // MARK: - Private

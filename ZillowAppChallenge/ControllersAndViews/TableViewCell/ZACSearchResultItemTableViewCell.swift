@@ -91,38 +91,46 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
         // try to load photo from cache, if not cached, async download the photo
         if let photoURLPaths = model.photos {
             
-            DispatchQueue.global(qos: .userInteractive).async {
+            DispatchQueue.global(qos: .userInteractive).async { [weak self] in
                 for urlPath: String in photoURLPaths {
                     
-                    let image = ZACImageCacher.fetchImage(urlPath)
+                    var image: UIImage?
+                    
+                    self?.dispatchGroup.enter()
+                    ZACImageCacher.fetchImage(urlPath, completion: { (resultImage: UIImage?) in
+                        image = resultImage
+                        self?.dispatchGroup.leave()
+                    })
+                    self?.dispatchGroup.wait()
+                    
                     if let image = image {
                         DispatchQueue.main.async {
-                            self.propertyImageView.image = image
+                            self?.propertyImageView.image = image
                         }
                         break  // break for loop, we only need one good image to display
                     } else {
-                        self.dispatchGroup.enter()
+                        self?.dispatchGroup.enter()
                         let url: URL = URL(string: urlPath)!
                         let sharedURLSession = URLSession.shared
                         let imageDownloadTask = sharedURLSession.downloadTask(with: url) { (fileURL: URL?, urlResponse: URLResponse?, error: Error?) in
                             if let error = error {
-                                self.imageDownloadedSuccess = false
+                                self?.imageDownloadedSuccess = false
                                 print("\(error.localizedDescription)")
                             }
                             else if let fileURL = fileURL, let data = try? Data(contentsOf: fileURL) {
-                                self.imageDownloadedSuccess = true
+                                self?.imageDownloadedSuccess = true
                                 let image = UIImage(data: data)
                                 ZACImageCacher.cacheImage(fileURL, withImage: image, withKey: urlPath)
                                 DispatchQueue.main.async {
-                                    self.propertyImageView.image = image
+                                    self?.propertyImageView.image = image
                                 }
                             }
-                            self.dispatchGroup.leave()
+                            self?.dispatchGroup.leave()
                         }
                         imageDownloadTask.resume()
-                        self.urlSessionImageDownloadTask = imageDownloadTask
-                        self.dispatchGroup.wait()
-                        if (imageDownloadTask.state == .canceling || self.imageDownloadedSuccess == true) {
+                        self?.urlSessionImageDownloadTask = imageDownloadTask
+                        self?.dispatchGroup.wait()
+                        if (imageDownloadTask.state == .canceling || self?.imageDownloadedSuccess == true) {
                             break // break for loop, we only need one good image to display
                         }
                     }
