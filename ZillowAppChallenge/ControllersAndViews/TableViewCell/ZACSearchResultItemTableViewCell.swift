@@ -17,10 +17,10 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
     @IBOutlet weak var bathroomsLabel: UILabel!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
     
-    var dispatchGroup: DispatchGroup = DispatchGroup()
-    var imageDownloadedSuccess: Bool = false
+    private var dispatchGroup: DispatchGroup = DispatchGroup()
+    private var imageDownloadedSuccess: Bool = false
     
-    var urlSessionImageDownloadTask: URLSessionDownloadTask?
+    private var urlSessionImageDownloadTask: URLSessionDownloadTask?
     
     override func awakeFromNib() {
         super.awakeFromNib()
@@ -120,7 +120,7 @@ class ZACSearchResultItemTableViewCell: UITableViewCell {
                             else if let fileURL = fileURL, let data = try? Data(contentsOf: fileURL) {
                                 self?.imageDownloadedSuccess = true
                                 let image = UIImage(data: data)
-                                ZACImageCacher.cacheImage(fileURL, withImage: image, withKey: urlPath)
+                                ZACImageCacher.cacheImage(image, withKey: urlPath)
                                 DispatchQueue.main.async {
                                     self?.propertyImageView.image = image
                                 }

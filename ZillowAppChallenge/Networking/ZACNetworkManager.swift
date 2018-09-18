@@ -33,10 +33,16 @@ class ZACNetworkManager: NSObject {
     private var listingFetchProgress: Progress?
     private var pageNumber: Int  // Tracking paging
     
+    // Resolve producer-consumer thread issue with serial queue
+    private let serialLockQueue: DispatchQueue = DispatchQueue(label: "com.kaizou.ZillowAppChallenge.ZACNetworkManager")
+    
     // MARK: - Public class functions
     
     class func registerDelegate(_ delegate: ZACNetworkManagerDelegate) {
-        ZACNetworkManager.shared().delegate = delegate
+        let sharedNetworkManager = ZACNetworkManager.shared()
+        sharedNetworkManager.serialLockQueue.sync { [weak sharedNetworkManager] in
+            sharedNetworkManager?.delegate = delegate
+        }
     }
     
     class func asyncFetchMoreListings() -> Progress {

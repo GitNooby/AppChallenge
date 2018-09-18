@@ -9,138 +9,67 @@
 import UIKit
 
 /**
- ImageCacher caches to memory (L1) and disk (L2).
+ ImageCacher caches images to memory.
  ImageCacher should be treated as a singleton.
  ImageCacher does NOT maintain state between app launches, so all cached images are lost after app quits.
  Cache evection rule: LRU
  */
 class ZACImageCacher: NSObject {
 
-    // Caching to disk
-    private var diskCacheLinkedList: LinkedList = LinkedList() // head is least recently used
-    private var diskCacheHashTable: [String: LinkedListNode] = [:]  // for quick access
-    private var maxDiskCacheSize: Int = Constants.ImageCacher.maxDiskCacheSize
     // Caching to memory
     private var memoryCacheLinkedList: LinkedList = LinkedList()  // head is least recently used
     private var memoryCacheHashTable: [String: LinkedListNode] = [:]  // for quick access
     private var maxMemoryCacheSize: Int = Constants.ImageCacher.maxMemoryCacheSize
-    
-    // Directory to save cached image files
-    private var applicationSupportURL: URL?
-    
     // Serial DispatchQueue to ensure only one thread is modifying the cache at a time
-    private let serialQueue: DispatchQueue = DispatchQueue(label: "com.kaizou.ZillowAppChallenge.ZACImageCacherSerialQueue")
+    private let serialLockQueue: DispatchQueue = DispatchQueue(label: "com.kaizou.ZillowAppChallenge.ZACImageCacherSerialQueue")
     
     // Mark: LRU cache interface
     
     class func clearCache() {
         let imageCacher = ZACImageCacher.shared()
-        
-        imageCacher.serialQueue.async { [weak imageCacher] in
+        // Ensure only one thread is modifying the cache
+        imageCacher.serialLockQueue.sync { [weak imageCacher] in
             // Clear memory cache
             imageCacher?.memoryCacheLinkedList.removeAllNodes()
             imageCacher?.memoryCacheHashTable.removeAll()
-            
-            // Clear disk cache
-            imageCacher?.diskCacheLinkedList.removeAllNodes()
-            imageCacher?.diskCacheHashTable.removeAll()
-            
-            // Remove all saved image files on disk
-            imageCacher?.clearAllFilesFromApplicationSupportDirectory()
         }
     }
     
-    class func cacheImage(_ imageFileURL: URL, withImage image:UIImage?, withKey key: String ) {
-        // Only save files that are more than 0 bytes in size
-        let attr = try? FileManager.default.attributesOfItem(atPath: imageFileURL.path)
-        let fileSize = attr![FileAttributeKey.size] as! UInt64
-        if fileSize == 0 {
+    class func cacheImage(_ image:UIImage?, withKey key: String ) {
+        if image == nil {
             return
         }
-        
-        //  Convert all input keys to sha256 so we don't have to worry about weird characters in file names
-        let sha256Key: String = key.sha256()
         let imageCacher = ZACImageCacher.shared()
         
-        imageCacher.serialQueue.async { [weak imageCacher] in
-            // If the file is already cached on disk, move it to tail to mark as most recently used
-            if let nodeOnDisk = imageCacher?.diskCacheHashTable[sha256Key] {
-                imageCacher?.diskCacheLinkedList.addNodeToTail((imageCacher?.diskCacheLinkedList.removeNode(nodeOnDisk))!)
-                
-                if let nodeInMemory = imageCacher?.memoryCacheHashTable[sha256Key] {
-                    imageCacher?.memoryCacheLinkedList.addNodeToTail((imageCacher?.memoryCacheLinkedList.removeNode(nodeInMemory))!)
-                }
-                else {
-                    // Create a new node for memory cache
-                    let memoryNode: LinkedListNode = LinkedListNode(nodeOnDisk.sha256Key, originalKey: nodeOnDisk.originalKey, value: nodeOnDisk.value)
-                    if nodeOnDisk.image == nil {
-                        if image != nil {
-                            memoryNode.image = image
-                        }
-                    } else {
-                        memoryNode.image = nodeOnDisk.image
-                    }
-                    imageCacher?.memoryCacheLinkedList.addNodeToTail(memoryNode)
-                    imageCacher?.memoryCacheHashTable[sha256Key] = memoryNode
-                    if (imageCacher?.memoryCacheHashTable.count)! > (imageCacher?.maxMemoryCacheSize)! {
-                        let removedNode = imageCacher?.memoryCacheLinkedList.removeNodeFromHead()
-                        removedNode?.image = nil
-                        imageCacher?.memoryCacheHashTable[(removedNode?.sha256Key)!] = nil
-                    }
-                }
-                return
+        // Ensure only one thread is modifying the cache
+        imageCacher.serialLockQueue.sync { [weak imageCacher] in
+            
+            if let cachedImageNode = imageCacher?.memoryCacheHashTable[key] {
+                imageCacher?.memoryCacheLinkedList.addNodeToTail((imageCacher?.memoryCacheLinkedList.removeNode(cachedImageNode))!)
             }
             else {
-                // Move file to application support directory
-                let newURL: URL = URL(string: sha256Key, relativeTo: imageCacher?.applicationSupportURL)!
-                do {
-                    try FileManager.default.moveItem(at: imageFileURL, to: newURL)
-                }
-                catch let error as NSError {
-                    assert(false, "TODO: this should be graceful: \(error.localizedDescription)")
-                }
-                
-                // Create a new node for disk cache
-                let diskNode: LinkedListNode = LinkedListNode(sha256Key, originalKey: key, value: newURL)
-                // Disk cache LRU enforcement
-                imageCacher?.diskCacheLinkedList.addNodeToTail(diskNode)
-                imageCacher?.diskCacheHashTable[sha256Key] = diskNode
-                if (imageCacher?.diskCacheHashTable.count)! > (imageCacher?.maxDiskCacheSize)! {
-                    let removedNode = imageCacher?.diskCacheLinkedList.removeNodeFromHead()
-                    imageCacher?.deleteFileForNode(removedNode!)
-                    imageCacher?.diskCacheHashTable[(removedNode?.sha256Key)!] = nil
-                }
-                
-                // Create a new node for memory cache
-                let memoryNode: LinkedListNode = LinkedListNode(sha256Key, originalKey: key, value: newURL)
-                // Memory cache LRU enforcement
-                imageCacher?.memoryCacheLinkedList.addNodeToTail(memoryNode)
-                imageCacher?.memoryCacheHashTable[sha256Key] = memoryNode
+                // Create a new node and add it to the cache
+                let cachedImageNode: LinkedListNode = LinkedListNode(key, image: image!)
+                imageCacher?.memoryCacheLinkedList.addNodeToTail(cachedImageNode)
+                imageCacher?.memoryCacheHashTable[key] = cachedImageNode
+                // Enfoce cache LRU eviction rule
                 if (imageCacher?.memoryCacheHashTable.count)! > (imageCacher?.maxMemoryCacheSize)! {
                     let removedNode = imageCacher?.memoryCacheLinkedList.removeNodeFromHead()
-                    removedNode?.image = nil
-                    imageCacher?.memoryCacheHashTable[(removedNode?.sha256Key)!] = nil
+                    imageCacher?.memoryCacheHashTable[(removedNode?.key)!] = nil
                 }
             }
         }
     }
     
     class func fetchImage(_ key:String, completion: @escaping (_ image: UIImage?) -> Void ) {
-        //  Convert all input keys to sha256 so we don't have to worry about weird characters in file names
-        let sha256Key: String = key.sha256()
         let imageCacher = ZACImageCacher.shared()
         
-        imageCacher.serialQueue.async { [weak imageCacher] in
+        imageCacher.serialLockQueue.sync { [weak imageCacher] in
+            
             // Try to fetch from memory first
-            if let node = imageCacher?.memoryCacheHashTable[sha256Key] {
-                ZACImageCacher.cacheImage(node.value, withImage: node.image, withKey: node.originalKey)
+            if let node = imageCacher?.memoryCacheHashTable[key] {
+                imageCacher?.memoryCacheLinkedList.addNodeToTail(node)
                 completion(node.image)
-                return
-            }
-            else if let node = imageCacher?.diskCacheHashTable[sha256Key] {
-                let image = imageCacher?.readImageFromDiskForNode(node)
-                ZACImageCacher.cacheImage(node.value, withImage: image, withKey: node.originalKey)
-                completion(image)
                 return
             }
             completion(nil)
@@ -149,24 +78,11 @@ class ZACImageCacher: NSObject {
     
     // MARK: - Private
     
-    private func readImageFromDiskForNode(_ node: LinkedListNode) -> UIImage {
-        return UIImage(contentsOfFile: node.value.path)!
-    }
-    
     private static var sharedImageCacher: ZACImageCacher = {
         return ZACImageCacher()
     }()
     
     private override init() {
-        // get the application suppory directory
-        do {
-            let fileManager = FileManager.default
-            let applicationSupportURL = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            self.applicationSupportURL = applicationSupportURL
-        } catch {
-            assert(false, "We can't get url to applicationSupportDirectory")  // TODO: should be graceful?
-        }
-        
         super.init()
     }
     
@@ -174,34 +90,17 @@ class ZACImageCacher: NSObject {
         return self.sharedImageCacher
     }
     
-    private func deleteFileForNode(_ node: LinkedListNode) {
-        try? FileManager.default.removeItem(at: node.value)
-    }
-    
-    private func clearAllFilesFromApplicationSupportDirectory(){
-        let directoryContents: Array? = try? FileManager.default.contentsOfDirectory(atPath: self.applicationSupportURL!.path)
-        
-        if let directoryContents = directoryContents {
-            for path in directoryContents {
-                let fileURL = self.applicationSupportURL?.appendingPathComponent(path)
-                try? FileManager.default.removeItem(at: fileURL!)
-            }
-        }
-    }
 }
 
 fileprivate class LinkedListNode: NSObject {
-    var sha256Key: String
-    var originalKey: String
-    var value: URL
-    var image: UIImage?
+    var key: String
+    var image: UIImage
     var next: LinkedListNode?
     var previous: LinkedListNode?
     
-    init(_ sha256Key: String, originalKey: String, value: URL) {
-        self.sha256Key = sha256Key
-        self.originalKey = originalKey
-        self.value = value
+    init(_ key: String, image: UIImage) {
+        self.key = key
+        self.image = image
         super.init()
     }
 }
@@ -263,35 +162,4 @@ fileprivate class LinkedList: NSObject {
             _ = self.removeNode(self.head!)
         }
     }
-}
-
-// Taken from: https://stackoverflow.com/questions/25388747/sha256-in-swift
-extension String {
-    
-    func sha256() -> String{
-        if let stringData = self.data(using: String.Encoding.utf8) {
-            return hexStringFromData(input: digest(input: stringData as NSData))
-        }
-        return ""
-    }
-    
-    private func digest(input : NSData) -> NSData {
-        let digestLength = Int(CC_SHA256_DIGEST_LENGTH)
-        var hash = [UInt8](repeating: 0, count: digestLength)
-        CC_SHA256(input.bytes, UInt32(input.length), &hash)
-        return NSData(bytes: hash, length: digestLength)
-    }
-    
-    private  func hexStringFromData(input: NSData) -> String {
-        var bytes = [UInt8](repeating: 0, count: input.length)
-        input.getBytes(&bytes, length: input.length)
-        
-        var hexString = ""
-        for byte in bytes {
-            hexString += String(format:"%02x", UInt8(byte))
-        }
-        
-        return hexString
-    }
-    
 }
